@@ -133,8 +133,8 @@ G_sample_re = tf.reshape(G_sample,[-1,dim_x])
 '''************ Self-correction step ************'''
 a_est,b_est = mimic_correction_v2(phi_ph,Y_obs_ph,G_sample_re)
 
-# phi_est = a_est*phi_ph+b_est
-phi_est = phi_ph
+phi_est = a_est*phi_ph+b_est
+#phi_est = phi_ph
 
 proj_corrected = projector_tf(G_sample_re,phi_est)
 
