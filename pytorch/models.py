@@ -1,4 +1,5 @@
 import torch.nn as nn
+## models taken from PyTorch tutorial page https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
