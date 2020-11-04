@@ -16,6 +16,14 @@ from skimage.transform import rescale, resize
 from skimage import io
 
 from models import *
+
+def cs_measure(gt,est,phi):
+    n_dim = gt.shape[1]* gt.shape[2]
+
+    y_gt = torch.matmul(gt.view(-1,n_dim),phi)
+    y_est = torch.matmul(est.view(-1,n_dim),phi)
+    return y_gt,y_est
+
 # I_x = I_y = 1024
 I_y = 768
 # I_x = 1536
@@ -23,7 +31,7 @@ I_x = 1152
 d_x = d_y = 32
 dim_x = d_x*d_y
 batch_size = (I_x*I_y)//(dim_x)
-n_measure = 0.01
+n_measure = 0.05
 lr_factor = 1.0#*batch_size//64
 nz = 100
 
@@ -35,8 +43,12 @@ workers = 2
 ngpu = 2
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+## measurement operator
+phi_np = np.random.randn(dim_x,dim_phi)
+phi_test = torch.Tensor(phi_np)
+
 iters = np.array(np.geomspace(10,10,nIter),dtype=int)
-fname = '../gpp-cs/test_images/{}.jpg'.format('color_leapord')
+fname = '../test_images/{}.jpg'.format('color_leapord')
 
 # x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
 image = io.imread(fname)
@@ -81,22 +93,27 @@ criterion = nn.MSELoss()
 # z_prior = torch.rand(batch_size, nz,1,1,requires_grad=True, device=device)
 z_prior = torch.zeros(batch_size,nz,1,1,requires_grad=True,device=device)
 
-optimizerZ = optim.RMSprop([z_prior], lr=1e-3)
+optimizerZ = optim.RMSprop([z_prior], lr=5e-3)
 
 real_cpu = test_images.to(device)
 
 for iters in range(nIter):
     fake = 0.5*netG(z_prior)+0.5
     fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
-
+    cost = 0.
     # print(torch.min(fake).item(),torch.min(real_cpu).item(),torch.max(fake).item(),torch.max(real_cpu).item())
-    cost = criterion(real_cpu, fake)
+    # cost = criterion(real_cpu, fake)
+    for i in range(3):
+        y_gt,y_est = cs_measure(real_cpu[:,i,:,:],fake[:,i,:,:],phi_test.to(device))
+        cost += criterion(y_gt,y_est)
+
     cost.backward()
     optimizerZ.step()
-    if (iters % 250 == 0):
+    if (iters % 50 == 0):
+        # print('Measurement dims',y_gt.shape,y_est.shape)
         print('Iter: {:d}, Projection Error : {:.3f}'.format(iters,cost.item()))
         with torch.no_grad():
             fake = 0.5*netG(z_prior).detach().cpu() + 0.5
-        img_ = vutils.make_grid(fake,nrow=n_img_plot_y, padding=0)
+            fake2 = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+        img_ = vutils.make_grid(fake2,nrow=n_img_plot_y, padding=0)
         vutils.save_image(img_,'outs/iters_{}.png'.format(str(iters).zfill(4)))
-        

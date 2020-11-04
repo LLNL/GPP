@@ -37,7 +37,7 @@ beta1 = 0.5
 
 ngpu = 2
 ####### DATASET LOADING ################
-cifar = np.load('../mimicGAN/IMAGENET/dataset/cifar-c-intense2.npy')
+cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-intense2.npy')
 cifar = np.transpose(cifar,[0,3,1,2])
 tensor_x = torch.Tensor(cifar)
 my_dataset = TensorDataset(tensor_x) # create your datset

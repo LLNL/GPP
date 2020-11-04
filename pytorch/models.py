@@ -9,7 +9,7 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 class Generator(nn.Module):
-    def __init__(self, ngpu=1,nc=3,ngf=64,nz=100):
+    def __init__(self, ngpu=1,nc=3,ngf=128,nz=100):
         super(Generator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
@@ -35,7 +35,7 @@ class Generator(nn.Module):
         return self.main(input)
 
 class Discriminator(nn.Module):
-    def __init__(self, ngpu=1,nc=3,ndf=64,nz=100):
+    def __init__(self, ngpu=1,nc=3,ndf=128,nz=100):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
