@@ -217,7 +217,7 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
 
 if __name__ == '__main__':
     # test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
-    test_images = ['Parrots']
-    for b_m in [-0.25]:
-        for test_img in test_images:
-            run_calibration(test_img,a_m=1.0,b_m=b_m)
+    test_images = ['barbara']
+
+    for test_img in test_images:
+        run_calibration(test_img,a_m=1.0,b_m=0.)

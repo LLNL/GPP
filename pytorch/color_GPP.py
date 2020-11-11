@@ -83,7 +83,7 @@ if (device.type == 'cuda') and (ngpu > 1):
     netG = nn.DataParallel(netG, list(range(ngpu)))
 
 netG.apply(weights_init)
-print(netG)
+
 
 if os.path.isfile(genPATH):
     print('**** Loading Generator ****')
@@ -101,7 +101,8 @@ optimizerZ = optim.RMSprop([z_prior], lr=1e-2)
 real_cpu = test_images.to(device)
 
 for iters in range(nIter):
-    fake = 0.5*netG(torch.clamp(z_prior,-1.,1.))+0.5
+    z2 = torch.clamp(z_prior,-1.,1.)
+    fake = 0.5*netG(z2)+0.5
     fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
     cost = 0.
 
@@ -115,7 +116,8 @@ for iters in range(nIter):
         # print('Measurement dims',y_gt.shape,y_est.shape)
 
         with torch.no_grad():
-            fake = 0.5*netG(torch.clamp(z_prior,-1.,1.)).detach().cpu() + 0.5
+            z2 = torch.clamp(z_prior,-1.,1.)
+            fake = 0.5*netG(z2).detach().cpu() + 0.5
             fake2 = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
 
         img_ = vutils.make_grid(fake2,nrow=n_img_plot_y, padding=0)

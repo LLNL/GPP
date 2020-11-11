@@ -14,8 +14,6 @@ import os
 
 from models import *
 
-genPATH = './all_models/generator.model'
-discPATH = './all_models/discriminator.model'
 
 '''
 This code uses snippets from the PyTorch DCGAN tutorial
@@ -27,17 +25,28 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Batch size during training
 batch_size = 128
 image_size = 64
-nc = 3
+nc = 1
 nz = 100
 ngf = 64
 ndf = 64
-num_epochs = 25
+num_epochs = 51
 lr = 0.0002
 beta1 = 0.5
 
-ngpu = 2
+ngpu = 1
 ####### DATASET LOADING ################
-cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-intense2.npy')
+if nc==1:
+    cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-sub.npy')
+    cifar = np.expand_dims(cifar,axis=3)
+    genPATH = './all_models/grayscale_generator.model'
+    discPATH = './all_models/grayscale_discriminator.model'
+
+else:
+    cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-intense2.npy')
+    genPATH = './all_models/generator.model'
+    discPATH = './all_models/discriminator.model'
+
+
 cifar = np.transpose(cifar,[0,3,1,2])
 tensor_x = torch.Tensor(cifar)
 my_dataset = TensorDataset(tensor_x) # create your datset
@@ -53,7 +62,7 @@ img_ = vutils.make_grid(img_tensor[:100],nrow=10, padding=1, normalize=True)
 
 vutils.save_image(img_,'outs/gt_sample.png')
 
-netG = Generator(ngpu).to(device)
+netG = Generator(ngpu=ngpu,nc=nc).to(device)
 # Handle multi-gpu if desired
 if (device.type == 'cuda') and (ngpu > 1):
     netG = nn.DataParallel(netG, list(range(ngpu)))
@@ -66,7 +75,7 @@ netG.apply(weights_init)
 print(netG)
 
 # Create the Discriminator
-netD = Discriminator(ngpu).to(device)
+netD = Discriminator(ngpu=ngpu,nc=nc).to(device)
 
 # Handle multi-gpu if desired
 if (device.type == 'cuda') and (ngpu > 1):
@@ -78,16 +87,6 @@ netD.apply(weights_init)
 
 # Print the model
 print(netD)
-if os.path.isfile(genPATH):
-    print('**** Loading Generator ****')
-    netG.load_state_dict(torch.load(genPATH))
-    netG.eval()
-
-if os.path.isfile(discPATH):
-    print('**** Loading Discriminator ****')
-    netD.load_state_dict(torch.load(discPATH))
-    netD.eval()
-
 # Initialize BCELoss function
 criterion = nn.BCELoss()
 
@@ -103,6 +102,16 @@ fake_label = 0.
 optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 # Training Loop
+if os.path.isfile(genPATH):
+    print('**** Loading Generator ****')
+    netG.load_state_dict(torch.load(genPATH))
+    netG.train()
+
+if os.path.isfile(discPATH):
+    print('**** Loading Discriminator ****')
+    netD.load_state_dict(torch.load(discPATH))
+    netD.train()
+
 
 # Lists to keep track of progress
 img_list = []
@@ -165,6 +174,7 @@ for epoch in range(num_epochs):
         D_G_z2 = output.mean().item()
         # Update G
         optimizerG.step()
+        # optimizerG.step()
 
         # Output training stats
         if i % 50 == 0:
