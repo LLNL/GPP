@@ -1,3 +1,5 @@
+# Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
+# SPDX-License-Identifier: MIT
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
@@ -21,46 +23,27 @@ from skimage.color import rgb2gray
 from PIL import Image
 
 from models import *
-####3
+from utils import *
+
+#####
 from bm3d import bm3d, BM3DProfile
 from experiment_funcs import get_experiment_noise
 
 
 noise_type = 'g0'
-noise_var = 0.05 # Noise variance
+noise_var = 0.02 # Noise variance
 seed = 0  # seed for pseudorandom noise realization
 
 # Generate noise with given PSD
 noise, psd, kernel = get_experiment_noise(noise_type, noise_var, seed, [256,256])
 ###
 
-def merge(images, size):
-  h, w = images.shape[1], images.shape[2]
-  if (images.shape[3] in (3,4)):
-    c = images.shape[3]
-    img = np.zeros((h * size[0], w * size[1], c))
-    for idx, image in enumerate(images):
-      i = idx % size[1]
-      j = idx // size[1]
-      img[j * h:j * h + h, i * w:i * w + w, :] = image
-    return img
-  elif images.shape[3]==1:
-    img = np.zeros((h * size[0], w * size[1]))
-    for idx, image in enumerate(images):
-      i = idx % size[1]
-      j = idx // size[1]
-      img[j * h:j * h + h, i * w:i * w + w] = image[:,:,0]
-    return img
-  else:
-    raise ValueError('in merge(images,size) images parameter '
-                     'must have dimensions: HxW or HxWx3 or HxWx4')
 
 def cs_measure(gt,est,phi):
     n_dim = gt.shape[2]* gt.shape[3]
     y_gt = torch.matmul(gt.view(-1,n_dim),phi)
     y_est = torch.matmul(est.view(-1,n_dim),phi)
     return y_gt,y_est
-    # return gt.view(-1,n_dim),est.view(-1,n_dim)
 
 
 I_y = 256
@@ -82,7 +65,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ## measurement operator
 phi_np = np.random.randn(dim_x,dim_phi)
 phi_test = torch.Tensor(phi_np)
-filename = 'lena256'
+filename = 'Parrots'
 fname = '../test_images/{}.tif'.format(filename)
 
 x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
@@ -102,7 +85,7 @@ print(x_test.shape)
 
 test_images = torch.Tensor(np.transpose(x_test[:batch_size,:,:,:],[0,3,1,2]))
 # vutils.imsave(test_images,[n_img_plot_x,n_img_plot_y],'cs_outs2/gt_sample.png')
-img_gt = vutils.make_grid(test_images,nrow=n_img_plot_y, padding=0, normalize=False)
+# img_gt = vutils.make_grid(test_images,nrow=n_img_plot_y, padding=0, normalize=False)
 # vutils.save_image(img_gt,'outs2/gt_sample.png')
 
 
@@ -125,12 +108,9 @@ for param in netG.parameters():
         param.requires_grad = False
 
 criterion = nn.MSELoss()
+z_prior = torch.zeros(batch_size,nz,1,1,requires_grad=True,device=device)
 
-z_approx = torch.FloatTensor(batch_size, nz, 1, 1).uniform_(-0.01, 0.01)
-z_prior = torch.Tensor(z_approx).to(device)
-z_prior.requires_grad = True
-
-optimizerZ = optim.RMSprop([z_prior], lr=2e-4)
+optimizerZ = optim.RMSprop([z_prior], lr=2e-3)
 
 real_cpu = test_images.to(device)
 
@@ -138,7 +118,7 @@ for iters in range(nIter):
     optimizerZ.zero_grad()
     # z2 = torch.clamp(z_prior,-1.,1.)
     fake = 0.5*netG(z_prior)+0.5
-    # fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+    fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
     y_gt,y_est = cs_measure(real_cpu,fake,phi_test.to(device))
     cost = criterion(y_gt,y_est)
 
@@ -150,7 +130,7 @@ for iters in range(nIter):
         with torch.no_grad():
             # z2 = torch.clamp(z_prior,-1.,1.)
             fake = 0.5*netG(z_prior).detach().cpu()+0.5
-            # fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+            fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
         G_imgs = np.transpose(fake.detach().cpu().numpy(),[0,2,3,1])
         imgest = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
 

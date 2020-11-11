@@ -1,3 +1,5 @@
+# Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
+# SPDX-License-Identifier: MIT
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

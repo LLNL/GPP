@@ -1,3 +1,6 @@
+# Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
+# SPDX-License-Identifier: MIT
+
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn

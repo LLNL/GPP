@@ -1,3 +1,5 @@
+# Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 from scipy.misc import imsave

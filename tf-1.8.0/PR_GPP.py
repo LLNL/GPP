@@ -1,4 +1,6 @@
-# coding=utf-8
+# Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
+# SPDX-License-Identifier: MIT
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -73,7 +75,7 @@ def run_calibration(test_img_name):
 
 
     modelsave ='./gan_models/gen_models_corrupt-cifar32'
-    
+
     fname = '/p/lustre1/anirudh1/GAN/mimicGAN/IMAGENET/test_images/{}.tif'.format(test_img_name)
     savefolder = 'paper_expts/results_pr_{}/'.format(str(n_measure*100))
 

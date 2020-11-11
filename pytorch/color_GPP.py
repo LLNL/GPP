@@ -17,6 +17,7 @@ from skimage import io
 from skimage.measure import compare_psnr
 
 from models import *
+from utils import *
 
 def cs_measure(gt,est,phi):
     n_dim = gt.shape[1]* gt.shape[2]
@@ -50,14 +51,11 @@ phi_test = torch.Tensor(phi_np)
 
 iters = np.array(np.geomspace(10,10,nIter),dtype=int)
 fname = '../test_images/{}.jpg'.format('color_tiger')
-
-# x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
 image = io.imread(fname)
 x_test = resize(image, (I_x, I_y),anti_aliasing=True,preserve_range=True,mode='reflect')
-x_test_ = np.array(x_test)/np.max(x_test)
+x_test_ = np.array(x_test)/255.
 print(x_test_.shape)
 
-# x_test_ = 2*x_test_-1
 x_test = []
 for i in range(n_img_plot_x):
     for j in range(n_img_plot_y):
@@ -65,12 +63,12 @@ for i in range(n_img_plot_x):
         x_test.append(_x)
 
 x_test = np.array(x_test)
-# x_test = np.expand_dims(x_test,3)
-print(x_test.shape)
+
 test_images = torch.Tensor(np.transpose(x_test[:batch_size,:,:,:],[0,3,1,2]))
 # vutils.imsave(test_images,[n_img_plot_x,n_img_plot_y],'cs_outs/gt_sample.png')
-img_gt = vutils.make_grid(test_images,nrow=n_img_plot_y, padding=0, normalize=True)
-vutils.save_image(img_gt,'outs/gt_sample.png')
+# img_gt = vutils.make_grid(test_images,nrow=n_img_plot_y, padding=0, normalize=True)
+# vutils.save_image(img_gt,'outs/gt_sample.png')
+io.imsave('outs2/gt.png',(255*x_test_[:,:,0]).astype(np.uint8))
 
 genPATH = './all_models/generator.model'
 discPATH = './all_models/discriminator.model'
@@ -101,6 +99,8 @@ optimizerZ = optim.RMSprop([z_prior], lr=1e-2)
 real_cpu = test_images.to(device)
 
 for iters in range(nIter):
+    optimizerZ.zero_grad()
+
     z2 = torch.clamp(z_prior,-1.,1.)
     fake = 0.5*netG(z2)+0.5
     fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
@@ -118,12 +118,13 @@ for iters in range(nIter):
         with torch.no_grad():
             z2 = torch.clamp(z_prior,-1.,1.)
             fake = 0.5*netG(z2).detach().cpu() + 0.5
-            fake2 = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+            fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+            G_imgs = np.transpose(fake.detach().cpu().numpy(),[0,2,3,1])
 
-        img_ = vutils.make_grid(fake2,nrow=n_img_plot_y, padding=0)
-        imggt = np.transpose(img_gt.detach().cpu().numpy(),[1,2,0])
-        imgest = np.transpose(img_.detach().cpu().numpy(),[1,2,0])
-        psnr = compare_psnr(imggt,imgest,data_range=1.0)
+        imgest = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
+        merged_clean = bm3d(imgest,psd)
+
+        psnr = compare_psnr(x_test_,imgest,data_range=1.0)
         print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}'.format(iters,cost.item(),psnr))
 
         vutils.save_image(img_,'outs/iters_{}.png'.format(str(iters).zfill(4)))
