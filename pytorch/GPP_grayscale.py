@@ -151,14 +151,9 @@ for iters in range(nIter):
             # z2 = torch.clamp(z_prior,-1.,1.)
             fake = 0.5*netG(z_prior).detach().cpu()+0.5
             # fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
-
-        # img_ = vutils.make_grid(fake,nrow=n_img_plot_y, padding=0,normalize=True)
         G_imgs = np.transpose(fake.detach().cpu().numpy(),[0,2,3,1])
         imgest = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
 
-        # imggt = rgb2gray(np.squeeze(np.transpose(img_gt.detach().cpu().numpy(),[1,2,0])))
-        # imgest = rgb2gray(np.squeeze(np.transpose(img_.detach().cpu().numpy(),[1,2,0])))
-        # imgest = imggt+0.01*np.random.randn(imggt.shape[0],imggt.shape[1],1)
         merged_clean = bm3d(imgest,psd)
 
         psnr0 = compare_psnr(x_test_[:,:,0],imgest,data_range=1.0)
