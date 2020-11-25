@@ -24,8 +24,6 @@ from PIL import Image
 
 from models import *
 from utils import *
-import lpips
-
 
 
 USE_BM3D = False
@@ -57,7 +55,7 @@ phi_np = np.random.randn(dim_x,dim_phi)
 phi_test = torch.Tensor(phi_np)
 
 
-if not USE_BM3D:
+if USE_BM3D:
     from bm3d import bm3d, BM3DProfile
     from experiment_funcs import get_experiment_noise
     noise_type = 'g0'
