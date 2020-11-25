@@ -10,9 +10,11 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 import torchvision.utils as vutils
 import torch.nn.functional as nnf
 import random
+torch.manual_seed(0)
 
 import matplotlib.pyplot as plt
 import numpy as np
+np.random.seed(0)
 import os
 
 from skimage.transform import rescale, resize
@@ -26,9 +28,10 @@ from models import *
 from utils import *
 
 
-USE_BM3D = False
+USE_BM3D = True
 savedir = './outs2'
 genPATH = './all_models/grayscale_generator.model'
+# genPATH = './all_models/grayscale_generator_v1-4-0.model'
 filename = 'boats'
 fname = '../test_images/{}.tif'.format(filename)
 
@@ -44,7 +47,7 @@ n_measure = 0.1
 nz = 100
 
 dim_phi = int(n_measure*dim_x)
-nIter = 10001
+nIter = 5001
 n_img_plot_x = I_x//d_x
 n_img_plot_y = I_y//d_y
 workers = 2
@@ -138,21 +141,21 @@ for iters in range(nIter):
             fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
         G_imgs = np.transpose(fake.detach().cpu().numpy(),[0,2,3,1])
         imgest = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
-
-
-
         psnr0 = compare_psnr(x_test_[:,:,0],imgest,data_range=1.0)
+
         if USE_BM3D:
             merged_clean = bm3d(imgest,psd)
             psnr1 = compare_psnr(x_test_[:,:,0],merged_clean,data_range=1.0)
             display = merged_clean
+            print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, PSNR-bm3d: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,psnr1,lr_scheduler.get_last_lr()[0]))
         else:
             print('PSNR and reconstructions are without BM3D')
             display = imgest
             psnr1 = psnr0
+            print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,lr_scheduler.get_last_lr()[0]))
 
 
-        print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, PSNR-bm3d: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,psnr1,lr_scheduler.get_last_lr()[0]))
+
         plt.imshow(display,cmap='gray')
         plt.axis('off')
         plt.text(50,240,"PSNR: {:.2f} dB".format(psnr1), color="blue", fontdict={"fontsize":20, "ha":"left", "va":"baseline"},bbox=dict(facecolor='white', alpha=0.6))
