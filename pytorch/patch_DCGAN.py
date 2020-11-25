@@ -41,8 +41,8 @@ ngpu = 1
 if nc==1:
     cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-sub.npy')
     cifar = np.expand_dims(cifar,axis=3)
-    genPATH = './all_models/grayscale_generator.model'
-    discPATH = './all_models/grayscale_discriminator.model'
+    genPATH = './all_models/grayscale_generator_v1-4-0.model'
+    discPATH = './all_models/grayscale_discriminator_v1-4-0.model'
 
 else:
     cifar = np.load('../../mimicGAN/IMAGENET/dataset/cifar-c-intense2.npy')
@@ -195,8 +195,8 @@ for epoch in range(num_epochs):
                 fake = netG(fixed_noise).detach().cpu()
             img_ = vutils.make_grid(fake,nrow=10, padding=1, normalize=True)
             vutils.save_image(img_,'outs/epoch_{}_iters_{}.png'.format(str(epoch).zfill(3),str(i).zfill(3)))
-            torch.save(netG.state_dict(), genPATH)
-            torch.save(netD.state_dict(), discPATH)
+            torch.save(netG.state_dict(), genPATH,_use_new_zipfile_serialization=False)
+            torch.save(netD.state_dict(), discPATH,_use_new_zipfile_serialization=False)
 
 
         iters += 1
