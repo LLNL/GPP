@@ -10,10 +10,15 @@
 ### The Generative Patch Prior
 
 ### Dependencies
-This package was built and tested using `Tensorflow 1.8.0`. It also depends on standard Python packages such as `NumPy`, `Matplotlib` for basic data loading and plotting utilities.
+There are two versions of GPP, with python 3.6: 
+* Pytorch `1.6.0` (also works with `1.4.0+`)
+* Tensorflow `1.8.0`
+We have included the corresponding patch-generators trained on CIFAR-32 for each framework. There are some performance differences; we report results from Tensorflow in the paper, but the PyTorch numbers are better on most examples (!!). 
+
+The code also has the option of using BM3D as part of the _inverse patch transform_ in order to mitigate some of the patching artifacts. Any implementation should work, we used two of them -- [`pybm3d`](https://github.com/ericmjonas/pybm3d) and [`bm3d`](https://pypi.org/project/bm3d/). **GPP does not need it to work, but will work better with BM3D**.
 
 ### Description
-##### Output/Images:
+
 
 
 ### License
