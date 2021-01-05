@@ -26,6 +26,7 @@ from PIL import Image
 
 from models import *
 from utils import *
+import pybm3d
 
 def GPP_solve():
     USE_BM3D = True
@@ -80,7 +81,7 @@ def GPP_solve():
     x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
     x_test_ = np.expand_dims(np.array(x_test)/255.,axis=2)
     torch_gt = torch.Tensor(np.transpose(x_test_,[2,0,1]))
-    print(x_test_.shape, np.max(x_test_), np.min(x_test_))
+
     io.imsave('{}/gt.png'.format(savedir),(255*x_test_[:,:,0]).astype(np.uint8))
     # x_test_ = 2*x_test_-1
     x_test = []
@@ -90,7 +91,7 @@ def GPP_solve():
             x_test.append(_x)
 
     x_test = np.array(x_test)
-    print(x_test.shape)
+
 
     test_images = torch.Tensor(np.transpose(x_test[:batch_size,:,:,:],[0,3,1,2]))
 
@@ -140,12 +141,14 @@ def GPP_solve():
             with torch.no_grad():
                 fake = 0.5*netG(z_prior).detach().cpu()+0.5
                 fake = nnf.interpolate(fake, size=(d_x, d_y), mode='bilinear', align_corners=False)
+
             G_imgs = np.transpose(fake.detach().cpu().numpy(),[0,2,3,1])
-            imgest = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
-            psnr0 = compare_psnr(x_test_[:,:,0],imgest,data_range=1.0)
+            merged = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
+            psnr0 = compare_psnr(x_test_[:,:,0],merged,data_range=1.0)
 
             if USE_BM3D:
-                merged_clean = bm3d(imgest,psd)
+                merged_clean = pybm3d.bm3d.bm3d(merged,0.25)
+               # merged_clean = bm3d(merged,psd)
                 psnr1 = compare_psnr(x_test_[:,:,0],merged_clean,data_range=1.0)
                 display = merged_clean
                 print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, PSNR-bm3d: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,psnr1,lr_scheduler.get_last_lr()[0]))
@@ -160,9 +163,9 @@ def GPP_solve():
             plt.imshow(display,cmap='gray')
             plt.axis('off')
             plt.text(50,240,"PSNR: {:.2f} dB".format(psnr1), color="blue", fontdict={"fontsize":20, "ha":"left", "va":"baseline"},bbox=dict(facecolor='white', alpha=0.6))
-            plt.savefig('outs2/inv_solution_{}.png'.format(str(iters).zfill(5)),bbox_inches = 'tight',pad_inches = 0)
+            plt.savefig('{}/inv_solution_{}.png'.format(savedir,str(iters).zfill(5)),bbox_inches = 'tight',pad_inches = 0)
             plt.close()
 
 if __name__ == '__main__':
     # test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
-    GPP_solve(test_img)
+    GPP_solve()
