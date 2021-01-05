@@ -4,8 +4,7 @@
 **Generative Patch Priors for Practical Compressive Image Recovery** -- [(pdf)](https://openaccess.thecvf.com/content/WACV2021/html/Anirudh_Generative_Patch_Priors_for_Practical_Compressive_Image_Recovery_WACV_2021_paper.html)
 
 [Rushil Anirudh](https://rushila.com/), [Suhas Lohit](https://suhaslohit.github.io/), [Pavan Turaga](https://pavanturaga.com/). In WACV, 2021.
-<img src='https://rushilacom.files.wordpress.com/2021/01/color_figure_v2.jpg' width=1200>
-
+<img src='https://rushilacom.files.wordpress.com/2021/01/color_figure_v2.jpg' width=1200>_Image recovered with GPP at a measurement rate of 10% using a GAN trained on CIFAR-C images of size 32x32._
 ### Overview of the approach for patch-based compressive sensing
 <img src='https://rushilacom.files.wordpress.com/2021/01/presentation2-1.gif' width=1200>
 
