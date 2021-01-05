@@ -17,8 +17,19 @@ The code also has the option of using BM3D as part of the _inverse patch transfo
 ### Description
 This section will be updated in the coming days. Please see the paper for details about GPP and its workings.
 
+## Citation
+If you find this code useful in your work, please consider citing our paper:
+```
+@inproceedings{zhang2018perceptual,
+  title={Generative Patch Priors for Practical Compressive Image Recover},
+  author={Anirudh, Rushil and Lohit, Suhas and Turaga, Pavan},
+  booktitle={WACV},
+  year={2021}
+}
+```
 
 ### License
 This code is distributed under the terms of the MIT license. All new contributions must be made under this license.
 LLNL-CODE- 812404
 SPDX-License-Identifier: MIT
+
