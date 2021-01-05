@@ -20,8 +20,8 @@ This section will be updated in the coming days. Please see the paper for detail
 ## Citation
 If you find this code useful in your work, please consider citing our paper:
 ```
-@inproceedings{zhang2018perceptual,
-  title={Generative Patch Priors for Practical Compressive Image Recover},
+@inproceedings{Anirudh2021GPP,
+  title={Generative Patch Priors for Practical Compressive Image Recovery},
   author={Anirudh, Rushil and Lohit, Suhas and Turaga, Pavan},
   booktitle={WACV},
   year={2021}
