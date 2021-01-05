@@ -6,6 +6,9 @@
 
 <img src='https://rushilacom.files.wordpress.com/2021/01/color_figure_v2.jpg' width=1200>
 
+### Overview of the approach for patch-based compressive sensing
+<img src='https://rushilacom.files.wordpress.com/2021/01/presentation2-1.gif' width=1200>
+
 ### Dependencies
 There are two versions of GPP, with python 3.6: 
 * Pytorch `1.6.0` (also works with `1.4.0+`)
