@@ -1,31 +1,26 @@
 # Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
 # SPDX-License-Identifier: MIT
 # coding=utf-8
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import tensorflow as tf
 
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
+from model import generator_c
 
-from model import *
-from utils import block_diagonal
 from skimage.measure import compare_psnr
-import matplotlib.gridspec as gridspec
-from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
 import pybm3d
 import os
-import cPickle as pkl
+
+
 from skimage.transform import rescale, resize
 from skimage import color
 from skimage import io
 import scipy
 
+'''
+*** WARNING: This code is experimental ***
+
+'''
 def projector_tf(imgs,phi=None):
     csproj = tf.matmul(imgs,tf.squeeze(phi))
     return csproj
@@ -59,7 +54,7 @@ def imsave(images, size, path):
 def sample_Z(m, n):
     return np.random.uniform(-1,1,size=[m, n])
 
-def run_calibration(test_image):
+def GPP_color(test_image):
 
     # I_x = I_y = 1024
     I_y = 1024
@@ -78,16 +73,14 @@ def run_calibration(test_image):
 
     iters = np.array(np.geomspace(10,10,nIter),dtype=int)
 
-    modelsave = './gan_models/gen_models_corrupt-colorcifar32-dimZ{:d}'.format(dim_z)
+    modelsave = './gan_models/gen_models_corrupt-colorcifar32'
     fname = './test_images/{}.jpg'.format(test_image)
 
-    # x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
     image = io.imread(fname)
     x_test = resize(image, (I_x, I_y),anti_aliasing=True,preserve_range=True,mode='reflect')
     x_test_ = np.array(x_test)/np.max(x_test)
-    print(x_test_.shape)
 
-    # x_test_ = 2*x_test_-1
+
     x_test = []
     for i in range(n_img_plot_x):
         for j in range(n_img_plot_y):
@@ -95,8 +88,6 @@ def run_calibration(test_image):
             x_test.append(_x)
 
     x_test = np.array(x_test)
-    # x_test = np.expand_dims(x_test,3)
-    print(x_test.shape)
     test_images = x_test[:batch_size,:,:,:]
 
     imsave(test_images,[n_img_plot_x,n_img_plot_y],'cs_outs/gt_sample.png')
@@ -110,8 +101,7 @@ def run_calibration(test_image):
     lr = tf.placeholder(tf.float32)
 
     tmp = 0.*tf.random_uniform([batch_size,dim_z],minval=-1.0,maxval=1.0)
-    # tmp = tf.expand_dims(tf.reduce_mean(tmp,axis=0),axis=0)
-    # z_ = tf.tile(tmp,[batch_size,1])
+
     z_prior_ = tf.Variable(tmp,name="z_prior")
 
     G_sample_ = 0.5*generator_c(z_prior_,False,dim_z=dim_z)+0.5
@@ -139,9 +129,7 @@ def run_calibration(test_image):
 
 
     solution_opt = tf.train.RMSPropOptimizer(lr).minimize(opt_loss, var_list=[z_prior_])
-    #no-calibration RMSPropOptimizer: 5e-4
-    #CIFAR-calibration: 3e-2
-    #Imagenette: 2.5e-2
+
     saver = tf.train.Saver(g_vars)
     merged_imgs = []
     with tf.Session() as sess:
@@ -151,7 +139,7 @@ def run_calibration(test_image):
 
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print("************ Prior restored! **************")
+            print("************ Generator weights restored! **************")
 
         nb = batch_size
         z_test = sample_Z(100,dim_z)
@@ -170,13 +158,8 @@ def run_calibration(test_image):
             if i %5 ==0:
                 G_imgs,tr_loss = sess.run([G_sample,G_loss],feed_dict={phi_ph:phi_np,Y_obs_ph:y_obs})
                 merged = merge(G_imgs,[n_img_plot_x,n_img_plot_y])
-                # if i%50==0:
-                #     merged_clean = pybm3d.bm3d.bm3d(merged,0.2)
-                #     psnr1 = compare_psnr(x_test_,merged_clean,data_range=1.0)
-                #     scipy.misc.imsave('cs_outs/inv_bm3d_solution_{}.png'.format(str(i).zfill(3)),merged_clean)
-
                 scipy.misc.imsave('cs_outs/inv_solution_{}.png'.format(str(i).zfill(3)),merged)
-                # scipy.misc.imsave('cs_outs/inv_bm3d_solution_{}.png'.format(str(i).zfill(3)),merged_clean)
+
                 psnr0 = compare_psnr(x_test_,merged,data_range=1.0)
 
                 print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}, PSNR-bm3d: {:.4f}'.format(i,tr_loss,psnr0,psnr0))
@@ -188,12 +171,9 @@ def run_calibration(test_image):
 
                 _,tr_loss = sess.run([solution_opt,G_loss],feed_dict=fd)
 
-        # merged_clean = pybm3d.bm3d.bm3d(merged,0.1)
-
-        # scipy.misc.imsave('cs_outs/inv_bm3d_solution_{}.png'.format(str(i).zfill(3)),merged_clean)
     return merged_imgs
 
 if __name__ == '__main__':
     test_image = 'color_turtle'
 
-    img_c = run_calibration(test_image)
+    img_c = GPP_color(test_image)
