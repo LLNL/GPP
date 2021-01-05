@@ -1,0 +1,2 @@
+model_checkpoint_path: "model_45000_batch_.ckpt"
+all_model_checkpoint_paths: "model_45000_batch_.ckpt"

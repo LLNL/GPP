@@ -32,7 +32,7 @@ nc = 1
 nz = 100
 ngf = 64
 ndf = 64
-num_epochs = 51
+num_epochs = 151
 lr = 0.0002
 beta1 = 0.5
 
@@ -162,7 +162,6 @@ for epoch in range(num_epochs):
         errD = errD_real + errD_fake
         # Update D
         optimizerD.step()
-
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
@@ -177,7 +176,7 @@ for epoch in range(num_epochs):
         D_G_z2 = output.mean().item()
         # Update G
         optimizerG.step()
-        # optimizerG.step()
+
 
         # Output training stats
         if i % 50 == 0:

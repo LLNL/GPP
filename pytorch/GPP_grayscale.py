@@ -62,7 +62,7 @@ if USE_BM3D:
     from bm3d import bm3d, BM3DProfile
     from experiment_funcs import get_experiment_noise
     noise_type = 'g0'
-    noise_var = 0.02 # Noise variance
+    noise_var = 0.03 # Noise variance
     seed = 0  # seed for pseudorandom noise realization
 
     # Generate noise with given PSD
@@ -74,6 +74,7 @@ def cs_measure(gt,est,phi):
     y_gt = torch.matmul(gt.view(-1,n_dim),phi)
     y_est = torch.matmul(est.view(-1,n_dim),phi)
     return y_gt,y_est
+
 
 
 x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
@@ -118,8 +119,8 @@ for param in netG.parameters():
 criterion = nn.MSELoss()
 z_prior = torch.zeros(batch_size,nz,1,1,requires_grad=True,device=device)
 
-optimizerZ = optim.RMSprop([z_prior], lr=8e-4)
-lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizerZ, gamma=0.99)
+optimizerZ = optim.RMSprop([z_prior], lr=5e-3)
+lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizerZ, gamma=0.9999)
 real_cpu = test_images.to(device)
 
 for iters in range(nIter):
@@ -149,7 +150,7 @@ for iters in range(nIter):
             display = merged_clean
             print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, PSNR-bm3d: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,psnr1,lr_scheduler.get_last_lr()[0]))
         else:
-            print('PSNR and reconstructions are without BM3D')
+            print('PSNR and reconstructions are not processed with BM3D')
             display = imgest
             psnr1 = psnr0
             print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,lr_scheduler.get_last_lr()[0]))
