@@ -14,6 +14,8 @@ We have included the corresponding patch-generators trained on CIFAR-32 for each
 
 The code also has the option of using BM3D as part of the _inverse patch transform_ in order to mitigate some of the patching artifacts. Any implementation should work, we used two of them -- [`pybm3d`](https://github.com/ericmjonas/pybm3d) and [`bm3d`](https://pypi.org/project/bm3d/). **GPP does not need it to work, but will work better with BM3D**.
 
+This is ongoing work, if you find errors or bugs please let us know! 
+
 ### Description
 This section will be updated in the coming days. Please see the paper for details about GPP and its workings.
 
