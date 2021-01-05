@@ -75,7 +75,15 @@ def GPP_solve(test_img_name):
     modelsave ='./gan_models/gen_models_corrupt-cifar32'
 
     fname = '/p/lustre1/anirudh1/GAN/mimicGAN/IMAGENET/test_images/{}.tif'.format(test_img_name)
+    savefolder = 'paper_expts/results_cs_A{:.3f}_B{:.3f}_{}/'.format(1.0,0.0,str(n_measure*100))
 
+    if not os.path.exists(savefolder):
+        os.makedirs(savefolder)
+
+    savename = savefolder+modelsave.split('_')[-1]+'_'+fname.split('/')[-1][:-4]+'.pkl'
+    print(savename)
+    # if os.path.exists(savename):
+    #     return
     x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
 
     x_test_ = np.array(x_test)/255.
