@@ -7,18 +7,11 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
+from model import generator_DIP
+from skimage.io import imsave
 
-from model import *
-from utils import block_diagonal
-
-import matplotlib.gridspec as gridspec
-from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
 import pybm3d
-import cPickle as pkl
 
 from skimage.measure import compare_psnr
 
@@ -47,21 +40,23 @@ def merge(images, size):
     raise ValueError('in merge(images,size) images parameter '
                      'must have dimensions: HxW or HxWx3 or HxWx4')
 
-def imsave(images, size, path):
-  image = np.squeeze(merge(images, size))
-  return scipy.misc.imsave(path, image)
+def grid_imsave(images, size, path):
+    image = merge(images, size)
+    imsave(path, image)
+    return
 
 def sample_Z(m, n):
     return np.random.uniform(0,1,size=[m, n])
 
 
-def run_dip(test_img_name,a_m=1.0,b_m=0.0):
+def run_dip(test_img_name):
+    bm3d_sigma = 0.25
     I_x = I_y = 256
     d_x = d_y = 32
     dim_x = d_x*d_y
     batch_size = (I_x*I_y)//(dim_x)
     n_measure = 0.1
-    lr_factor = 1.0#*batch_size//64
+    lr_factor = 1.0
 
     n_img_plot = int(np.sqrt(batch_size))
     dim_z = 100
@@ -71,13 +66,6 @@ def run_dip(test_img_name,a_m=1.0,b_m=0.0):
 
     modelsave = './DIP'
     fname = './test_images/{}.tif'.format(test_img_name)
-    savefolder = 'paper_expts/results_cs_A{:.3f}_B{:.3f}_{}/'.format(a_m,b_m,str(n_measure*100))
-
-    if not os.path.exists(savefolder):
-        os.makedirs(savefolder)
-
-    savename = savefolder+modelsave.split('_')[-1]+'_'+fname.split('/')[-1][:-4]+'_DeepPatchPrior.pkl'
-    print(savename)
 
     x_test = Image.open(fname).convert(mode='L').resize((256,256))
 
@@ -94,38 +82,7 @@ def run_dip(test_img_name,a_m=1.0,b_m=0.0):
 
     test_images = x_test[:batch_size,:,:,:]
 
-    imsave(test_images,[n_img_plot,n_img_plot],'cs_outs/gt_sample.png')
-
-
-    def mimic_correction_v2(phi_old,y_obs,G_curr,n_batch=batch_size):
-        a_list = []
-        b_list = []
-        for i in range(n_batch):
-            phi_block = block_diagonal(1*[phi_old])
-            y_block = tf.reshape(y_obs[i,:],[1,1*dim_phi])
-            G_block = tf.reshape(G_curr[i,:],[1,1*dim_x])
-            I = tf.ones_like(phi_old)
-            I_block = block_diagonal(1*[I])
-            y_m = tf.matmul(G_block,I_block)
-
-            y_hat = tf.matmul(G_block,phi_block)
-            theta_1 = tf.squeeze(tf.matmul(y_hat,tf.transpose(y_hat)))
-            theta_2 = tf.squeeze(tf.matmul(y_hat,tf.transpose(y_m)))
-            C0 = tf.matmul(y_block,tf.transpose(y_hat))
-
-            theta_4 = tf.matmul(y_m,tf.transpose(y_m))
-            C1 = tf.matmul(y_block,tf.transpose(y_m))
-
-            a_est = tf.squeeze((theta_4*C0-C1*theta_2)/(theta_1*theta_4 - theta_2*theta_2))
-            b_est = tf.squeeze((C1 - a_est*theta_2)/theta_4)
-            a_list.append(a_est)
-            b_list.append(b_est)
-        a_approx = tf.reduce_mean(a_list)
-        b_approx = tf.reduce_mean(b_list)
-        # a_est = tf.squeeze((C1-theta_4*b_est)/(theta_2))
-        return a_approx,b_approx
-
-
+    grid_imsave(test_images,[n_img_plot,n_img_plot],'cs_outs/gt_sample.png')
     tf.reset_default_graph()
     tf.set_random_seed(0)
     np.random.seed(4321)
@@ -137,10 +94,6 @@ def run_dip(test_img_name,a_m=1.0,b_m=0.0):
     G_sample = 0.5*generator_DIP(z_prior)+0.5
     G_sample_re = tf.reshape(G_sample,[-1,dim_x])
 
-    '''************ Self-correction step ************'''
-    # a_est,b_est = mimic_correction_v2(phi_ph,Y_obs_ph,G_sample_re)
-
-    # phi_est = a_est*phi_ph+b_est
     phi_est = phi_ph
 
     y_corrected = projector_tf(G_sample_re,phi_est)
@@ -163,16 +116,11 @@ def run_dip(test_img_name,a_m=1.0,b_m=0.0):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         ckpt = tf.train.get_checkpoint_state(modelsave)
-        #
-        #
-        # if ckpt and ckpt.model_checkpoint_path:
-        #     saver.restore(sess, ckpt.model_checkpoint_path)
-        #     print("************ Prior restored! **************")
 
         nb = batch_size
         z_test = sample_Z(batch_size,dim_z)
         phi_np = np.random.randn(dim_x,dim_phi)/float(dim_phi)
-        phi_test_np = a_m*phi_np + b_m
+        phi_test_np = phi_np
 
         print(np.mean(x_test),np.min(x_test),np.max(x_test))
         y_obs = np.matmul(test_images.reshape(-1,dim_x),phi_test_np)
@@ -185,26 +133,25 @@ def run_dip(test_img_name,a_m=1.0,b_m=0.0):
                 G_imgs,tr_loss = sess.run([G_sample,G_loss],feed_dict={phi_ph:phi_np,Y_obs_ph:y_obs,z_prior:z_test})
 
                 merged = merge(G_imgs,[n_img_plot,n_img_plot])
-                merged_clean = pybm3d.bm3d.bm3d(merged, 0.15)
                 psnr0 = compare_psnr(x_test_,merged,data_range=1.0)
-                psnr1 = compare_psnr(x_test_,merged_clean,data_range=1.0)
-                scipy.misc.imsave('cs_outs/inv_solution_{}.png'.format(str(i).zfill(3)),merged)
-                scipy.misc.imsave('cs_outs/inv_bm3d_solution_{}.png'.format(str(i).zfill(3)),merged_clean)
-                print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}, PSNR-bm3d: {:.4f}'.format(i,tr_loss,psnr0,psnr1))
+
+                if USE_BM3D:
+                    merged_clean = pybm3d.bm3d.bm3d(merged,bm3d_sigma)
+                    psnr1 = compare_psnr(x_test_,merged_clean,data_range=1.0)
+                    merged_clean = np.array(merged_clean*255,dtype=np.uint8)
+                    print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}, PSNR-bm3d: {:.4f}'.format(i,tr_loss,psnr0,psnr1))
+                    imsave('{}/inv_bm3d_solution_{}.png'.format(savedir,str(i).zfill(3)),merged_clean)
+
+                else:
+                    merged = np.array(merged*255,dtype=np.uint8)
+                    print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}'.format(i,tr_loss,psnr0))
+                    imsave('{}/inv_solution_{}.png'.format(savedir,str(i).zfill(3)),merged)
 
             fd = {phi_ph:phi_np,Y_obs_ph:y_obs,z_prior:z_test,lr:lr_new}
             for j in range(iters[i]):
                 _,tr_loss = sess.run([solution_opt,G_loss],feed_dict=fd)
 
-        # results_dict = {}
-        # results_dict['psnr'] = [psnr0,psnr1]
-        # results_dict['gprior'] = merged
-        # results_dict['gprior_bm3d'] = merged_clean
-        # pkl.dump(results_dict,open(savename,'wb'))
-
 if __name__ == '__main__':
-    test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
-    # test_images =['cameraman']
-    for b_m in [-0.25]:
-        for test_img in test_images:
-            run_dip(test_img,a_m=1.0,b_m=b_m)
+    # test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
+
+    run_dip(test_img_name='Parrots')
