@@ -1,26 +1,17 @@
 # Copyright 2020 Lawrence Livermore National Security, LLC and other authors: Rushil Anirudh, Suhas Lohit, Pavan Turaga
 # SPDX-License-Identifier: MIT
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import tensorflow as tf
 
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-
-from model import *
+from model import generator
 from utils import block_diagonal
 from skimage.measure import compare_psnr
-import matplotlib.gridspec as gridspec
-from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
 import pybm3d
 import os
-import cPickle as pkl
-import scipy
+
+from skimage.io import imsave
+from utils import grid_imsave, merge
 
 def projector_tf(imgs,phi=None):
     csproj = tf.matmul(imgs,tf.squeeze(phi))
@@ -28,36 +19,16 @@ def projector_tf(imgs,phi=None):
 
 
 
-def merge(images, size):
-  h, w = images.shape[1], images.shape[2]
-  if (images.shape[3] in (3,4)):
-    c = images.shape[3]
-    img = np.zeros((h * size[0], w * size[1], c))
-    for idx, image in enumerate(images):
-      i = idx % size[1]
-      j = idx // size[1]
-      img[j * h:j * h + h, i * w:i * w + w, :] = image
-    return img
-  elif images.shape[3]==1:
-    img = np.zeros((h * size[0], w * size[1]))
-    for idx, image in enumerate(images):
-      i = idx % size[1]
-      j = idx // size[1]
-      img[j * h:j * h + h, i * w:i * w + w] = image[:,:,0]
-    return img
-  else:
-    raise ValueError('in merge(images,size) images parameter '
-                     'must have dimensions: HxW or HxWx3 or HxWx4')
-
-def imsave(images, size, path):
-  image = np.squeeze(merge(images, size))
-  return scipy.misc.imsave(path, image)
-
 def sample_Z(m, n):
     return np.random.uniform(-1,1,size=[m, n])
 
 
-def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
+def GPP_SC_solve(test_img_name='Parrots',a_m=1.0,b_m=0.0,savedir='outs_sc_tf',USE_BM3D=False):
+    modelsave ='./gan_models/gen_models_corrupt-cifar32'
+    fname = '/p/lustre1/anirudh1/GAN/mimicGAN/IMAGENET/test_images/{}.tif'.format(test_img_name)
+
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
 
     I_x = I_y = 256
     d_x = d_y = 32
@@ -103,20 +74,6 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
         return a_approx,b_approx
 
 
-    iters = np.array(np.geomspace(10,10,nIter),dtype=int)
-
-    modelsave ='./gan_models/gen_models_corrupt-cifar32'
-
-    fname = '/p/lustre1/anirudh1/GAN/mimicGAN/IMAGENET/test_images/{}.tif'.format(test_img_name)
-    savefolder = 'paper_expts/results_cs_A{:.3f}_B{:.3f}_{}/'.format(a_m,b_m,str(n_measure*100))
-
-    if not os.path.exists(savefolder):
-        os.makedirs(savefolder)
-
-    savename = savefolder+modelsave.split('_')[-1]+'_'+fname.split('/')[-1][:-4]+'_GPP_Calibration.pkl'
-    print(savename)
-    # if os.path.exists(savename):
-    #     return
     x_test = Image.open(fname).convert(mode='L').resize((I_x,I_y))
 
     x_test_ = np.array(x_test)/255.
@@ -130,10 +87,10 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
 
     x_test = np.array(x_test)
     x_test = np.expand_dims(x_test,3)
-    print(x_test.shape)
+
     test_images = x_test[:batch_size,:,:,:]
 
-    imsave(test_images,[n_img_plot,n_img_plot],'cs_outs/gt_sample.png')
+    grid_imsave(test_images,[n_img_plot,n_img_plot],'{}/gt_sample.png'.format(savedir))
 
     tf.reset_default_graph()
     tf.set_random_seed(0)
@@ -149,20 +106,19 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
     z_prior_ = tf.Variable(z_,name="z_prior")
 
     G_sample_ = 0.5*generator(z_prior_,False)+0.5
-    # G_sample = G_sample_[:,::2,::2]
+
     G_sample = tf.image.resize_images(G_sample_,[d_x,d_y],tf.image.ResizeMethod.BICUBIC)
     G_sample_re = tf.reshape(G_sample,[-1,dim_x])
 
     a_est,b_est = mimic_correction_v2(phi_ph,Y_obs_ph,G_sample_re)
 
     phi_est = a_est*phi_ph+b_est
-    # phi_est = phi_ph
     proj_init = projector_tf(G_sample_re,phi_ph)
     proj_corrected = projector_tf(G_sample_re,phi_est)
 
     G_loss = tf.reduce_mean(tf.square(proj_corrected-Y_obs_ph))
     loss = tf.reduce_mean(tf.abs(proj_corrected-Y_obs_ph))
-    # z_clip = tf.clip_by_value(z_prior_,-1,1)
+
     z_mean = tf.expand_dims(tf.reduce_mean(z_prior_,axis=0),axis=0)
     z_mean = tf.tile(z_mean,[64,1])
 
@@ -183,21 +139,19 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
 
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print("************ Prior restored! **************")
+            print("************ Generator weights restored! **************")
 
         nb = batch_size
         z_test = sample_Z(100,dim_z)
         phi_np = np.random.randn(dim_x,dim_phi)
 
         phi_test_np = a_m*phi_np+ b_m
-
-        print(np.mean(x_test),np.min(x_test),np.max(x_test))
         y_obs = np.matmul(test_images.reshape(-1,dim_x),phi_test_np)
         lr_start = 5e-3 #TBD
         a_ests = []
         b_ests = []
         psnrs = []
-        for i in xrange(nIter):
+        for i in range(nIter):
             # lr_new = lr_start*0.99**(1.*i/nIter)
             if i<30:
                 lr_new = lr_start
@@ -206,36 +160,29 @@ def run_calibration(test_img_name,a_m=1.0,b_m=0.0):
 
             if i %10==0:
                 G_imgs,tr_loss,a_estimate,b_estimate = sess.run([G_sample,G_loss,a_est,b_est],feed_dict={phi_ph:phi_np,Y_obs_ph:y_obs})
+                print('iter: {:d}, a*-estiate: {:.4f}, b*-estimate: {:.4f}'.format(i,a_estimate,b_estimate))
                 merged = merge(G_imgs,[n_img_plot,n_img_plot])
-                merged_clean = pybm3d.bm3d.bm3d(merged,.15)
-                scipy.misc.imsave('cs_outs/inv_solution_{}.png'.format(str(i).zfill(3)),merged)
-                scipy.misc.imsave('cs_outs/inv_bm3d_solution_{}.png'.format(str(i).zfill(3)),merged_clean)
                 psnr0 = compare_psnr(x_test_,merged,data_range=1.0)
-                psnr1 = compare_psnr(x_test_,merged_clean,data_range=1.0)
-                print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}, PSNR-bm3d: {:.4f}, a*: {:.3f}, b*: {:.3f},lr_new:{:.4f}'.format(i,tr_loss,psnr0,psnr1,a_estimate,b_estimate,lr_new))
-                # print('iter: {:d}, PSNR: {:.4f}, a*: {:.3f}, b*: {:.3f}'.format(i,psnr0,a_estimate,b_estimate))
-                a_ests.append(a_estimate)
-                b_ests.append(b_estimate)
-                psnrs.append(psnr0)
+
+                if USE_BM3D:
+                    merged_clean = pybm3d.bm3d.bm3d(merged,0.25)
+                    psnr1 = compare_psnr(x_test_,merged_clean,data_range=1.0)
+                    merged_clean = np.array(merged_clean*255,dtype=np.uint8)
+                    print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}, PSNR-bm3d: {:.4f}'.format(i,tr_loss,psnr0,psnr1))
+                    imsave('{}/inv_bm3d_solution_{}.png'.format(savedir,str(i).zfill(3)),merged_clean)
+
+                else:
+                    merged = np.array(merged*255,dtype=np.uint8)
+                    print('iter: {:d}, tr loss: {:.4f}, PSNR-raw: {:.4f}'.format(i,tr_loss,psnr0))
+                    imsave('{}/inv_solution_{}.png'.format(savedir,str(i).zfill(3)),merged)
+
 
             fd = {phi_ph:phi_np,Y_obs_ph:y_obs,lr:lr_new}
 
-            for j in range(iters[i]):
+            for j in range(10):
                 _,tr_loss = sess.run([solution_opt,G_loss],feed_dict=fd)
 
-        # np.save('paper_expts_psnrs_plot.npy',np.array(psnrs))
-        # np.save('paper_expts_a_plot.npy',np.array(a_ests))
-        # np.save('paper_expts_b_plot.npy',np.array(b_ests))
-        # results_dict = {}
-        # results_dict['psnr'] = [psnr0,psnr1]
-        # results_dict['gprior'] = merged
-        # results_dict['gprior_bm3d'] = merged_clean
-        # pkl.dump(results_dict,open(savename,'wb'))
-
 if __name__ == '__main__':
-    # test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
-    test_images = ['Parrots']
-    # for b_m in [-1.0,-0.5,-0.25,-0.125,0.125,0.25,0.5]:
-    # for a_m in [0.25]:
-    for test_img in test_images:
-        run_calibration(test_img,a_m=1.0,b_m=-0.25)
+    sensor_gain = 1.0
+    sensor_shift = -0.25
+    GPP_SC_solve(test_img_name='Parrots',a_m=sensor_gain,b_m=sensor_shift)
