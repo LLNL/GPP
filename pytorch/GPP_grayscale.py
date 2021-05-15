@@ -33,7 +33,7 @@ def GPP_solve():
     savedir = './outs_pt'
     genPATH = './all_models/grayscale_generator.pt'
     # genPATH = './all_models/grayscale_generator_v1-4-0.model'
-    filename = 'boats'
+    filename = 'Monarch'
     fname = '../test_images/{}.tif'.format(filename)
 
     if not os.path.exists(savedir):
@@ -63,7 +63,7 @@ def GPP_solve():
         from bm3d import bm3d, BM3DProfile
         from experiment_funcs import get_experiment_noise
         noise_type = 'g0'
-        noise_var = 0.03 # Noise variance
+        noise_var = 0.02 # Noise variance
         seed = 0  # seed for pseudorandom noise realization
 
         # Generate noise with given PSD
@@ -152,19 +152,20 @@ def GPP_solve():
                 psnr1 = compare_psnr(x_test_[:,:,0],merged_clean,data_range=1.0)
                 display = merged_clean
                 print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, PSNR-bm3d: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,psnr1,lr_scheduler.get_last_lr()[0]))
+                io.imsave('{}/inv_solution_bm3d_iters_{}.png'.format(savedir,str(iters).zfill(4)),(255*merged_clean).astype(np.uint8))
             else:
                 print('PSNR and reconstructions are not processed with BM3D')
-                display = imgest
+                display = merged
                 psnr1 = psnr0
                 print('Iter: {:d}, Error: {:.3f}, PSNR: {:.3f}, Current LR:{:.5f} '.format(iters,cost.item(),psnr0,lr_scheduler.get_last_lr()[0]))
+                io.imsave('{}/inv_solution_iters_{}.png'.format(savedir,str(iters).zfill(4)),(255*imgest).astype(np.uint8))
 
 
-
-            plt.imshow(display,cmap='gray')
-            plt.axis('off')
-            plt.text(50,240,"PSNR: {:.2f} dB".format(psnr1), color="blue", fontdict={"fontsize":20, "ha":"left", "va":"baseline"},bbox=dict(facecolor='white', alpha=0.6))
-            plt.savefig('{}/inv_solution_{}.png'.format(savedir,str(iters).zfill(5)),bbox_inches = 'tight',pad_inches = 0)
-            plt.close()
+            # plt.imshow(display,cmap='gray')
+            # plt.axis('off')
+            # plt.text(50,240,"PSNR: {:.2f} dB".format(psnr1), color="blue", fontdict={"fontsize":20, "ha":"left", "va":"baseline"},bbox=dict(facecolor='white', alpha=0.6))
+            # plt.savefig('{}/inv_solution_{}.png'.format(savedir,str(iters).zfill(5)),bbox_inches = 'tight',pad_inches = 0)
+            # plt.close()
 
 if __name__ == '__main__':
     # test_images = ['barbara', 'Parrots','lena256','foreman','cameraman','house','Monarch']
